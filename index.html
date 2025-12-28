@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambient Wikidata Chatter</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #container {
+            width: 80%;
+            max-width: 800px;
+            text-align: center;
+        }
+        #chatter-box {
+            font-size: 1.5rem;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        }
+        .message {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease-out, transform 1s ease-out;
+            margin-bottom: 1rem;
+            color: #4caf50;
+        }
+        .message.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .message.old {
+            opacity: 0.3;
+            color: #888;
+        }
+        #status {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover {
+            background: #444;
+        }
+        .meta {
+            font-size: 0.6em;
+            color: #555;
+            margin-top: 0.2rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div id="chatter-box"></div>
+    <div id="status">Waiting for location...</div>
+    <div id="controls">
+        <button id="btn-start">Use London</button>
+        <button id="btn-geo">Use My GPS Location</button>
+    </div>
+</div>
+
+<script>
+    class WikidataFetcher {
+        constructor(limit = 15) {
+            this.endpoint = "https://query.wikidata.org/sparql";
+            this.limit = limit;
+        }
+
+        async fetchNearby(lat, lon, radius = 1) {
+            console.log(`Fetching data for ${lat}, ${lon}...`);
+            
+            const queries = [
+                this.getLocationsQuery(lat, lon, radius),
+                this.getBirthsQuery(lat, lon, radius),
+                this.getDeathsQuery(lat, lon, radius),
+                this.getEventsQuery(lat, lon, radius),
+                this.getHeadquartersQuery(lat, lon, radius),
+                this.getFilmingQuery(lat, lon, radius),
+                this.getFictionQuery(lat, lon, radius)
+            ];
+
+            const results = await Promise.all(queries.map(q => this.runQuery(q)));
+            const flatResults = results.flat();
+
+            // Deduplicate by ID (QID)
+            const seen = new Set();
+            return flatResults.filter(item => {
+                if (seen.has(item.id)) return false;
+                seen.add(item.id);
+                return true;
+            });
+        }
+
+        async runQuery(query) {
+            const url = this.endpoint + "?query=" + encodeURIComponent(query) + "&format=json";
+            try {
+                const response = await fetch(url);
+                if (!response.ok) return [];
+                const data = await response.json();
+                return this.processResults(data.results.bindings);
+            } catch (e) {
+                console.error("Query failed", e);
+                return [];
+            }
+        }
+
+        getLocationsQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("location" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?item wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 10) 
+                  OPTIONAL { ?item wdt:P571 ?date }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getBirthsQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("birth" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P19 ?place .
+                  ?item wdt:P569 ?date .
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 5)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getDeathsQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("death" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P20 ?place .
+                  ?item wdt:P570 ?date .
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 5)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getEventsQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("event" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?item wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P585 ?date . # Point in time
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 2)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getHeadquartersQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("headquarters" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P159 ?place . # Headquartered here
+                  OPTIONAL { ?item wdt:P571 ?date }
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 5)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getFilmingQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("filming" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P915 ?place . # Filming location
+                  OPTIONAL { ?item wdt:P577 ?date } # Publication date
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 5)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getFictionQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("fiction" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P840 ?place . # Narrative location
+                  OPTIONAL { ?item wdt:P577 ?date } # Publication date
+                  ?item wikibase:sitelinks ?sitelinks .
+                  FILTER(?sitelinks > 5)
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        processResults(bindings) {
+            return bindings.map(b => ({
+                id: b.item.value, // Capture QID for deduplication
+                label: b.itemLabel.value,
+                desc: b.itemDescription ? b.itemDescription.value : "",
+                date: b.date ? this.formatDate(b.date.value) : null,
+                type: b.type.value,
+                sitelinks: parseInt(b.sitelinks.value)
+            }));
+        }
+
+        formatDate(dateStr) {
+            try {
+                // Wikidata dates look like: +1983-00-00T00:00:00Z
+                const d = dateStr.startsWith('+') ? dateStr.substring(1) : dateStr;
+                return d.split('-')[0]; // use just the year
+            } catch (e) {
+                return null;
+            }
+        }
+    }
+
+    class AmbientChatter {
+        constructor() {
+            this.fetcher = new WikidataFetcher();
+            this.facts = [];
+            this.deck = []; // A shuffled deck of facts to read from
+            this.displayEl = document.getElementById('chatter-box');
+            this.statusEl = document.getElementById('status');
+            this.isRambling = false;
+        }
+
+        async start(lat, lon) {
+            document.getElementById('controls').style.display = 'none';
+            const radii = [1, 5, 20, 50]; // Scan range in km
+
+            for (const radius of radii) {
+                this.statusEl.innerText = `Scanning wikidata around ${lat.toFixed(4)}, ${lon.toFixed(4)} (${radius}km radius)...`;
+                
+                try {
+                    const newFacts = await this.fetcher.fetchNearby(lat, lon, radius);
+                    
+                    // If we found enough facts, or this is our last attempt, start rambling
+                    if (newFacts.length > 5 || radius === 50) {
+                         this.facts = newFacts;
+                         this.statusEl.innerText = `Found ${this.facts.length} echoes from the past (within ${radius}km). Listening...`;
+                         
+                         if (!this.isRambling) {
+                             this.isRambling = true;
+                             this.rambleLoop();
+                         }
+                         return;
+                    }
+                } catch (e) {
+                    this.statusEl.innerText = "Error connecting to Wikidata.";
+                    return;
+                }
+            }
+        }
+
+        rambleLoop() {
+            if (this.facts.length === 0) return;
+
+            // Refill deck if empty
+            if (this.deck.length === 0) {
+                this.deck = [...this.facts];
+                this.shuffle(this.deck);
+                // prevent the last item of the old deck from being the first of the new one
+                if (this.deck.length > 1 && this.lastFact && this.deck[0].id === this.lastFact.id) {
+                    this.deck.push(this.deck.shift());
+                }
+            }
+
+            // Random fact
+            const fact = this.deck.pop();
+            this.lastFact = fact;
+            this.speak(fact);
+            
+            // Schedule next fact (random interval between 4s and 8s)
+            setTimeout(() => this.rambleLoop(), 4000 + Math.random() * 4000);
+        }
+
+        shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        speak(fact) {
+            const sentence = this.constructSentence(fact);
+            
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            msg.innerHTML = `
+                ${sentence}
+                <div class="meta">(${fact.type} / ${fact.sitelinks} refs)</div>
+            `;
+            
+            this.displayEl.appendChild(msg);
+            
+            // Trigger animation
+            setTimeout(() => msg.classList.add('visible'), 50);
+
+            // Fade out old messages
+            const messages = this.displayEl.querySelectorAll('.message');
+            if (messages.length > 3) {
+                messages[0].classList.add('old');
+                if (messages.length > 5) {
+                    messages[0].remove();
+                }
+            }
+        }
+
+        constructSentence(fact) {
+            const templates = {
+                'birth': [
+                    `${fact.label} entered the world near here in ${fact.date}.`,
+                    `In ${fact.date}, ${fact.label} was born close by.`,
+                    `The story of ${fact.label} began here in ${fact.date}.`
+                ],
+                'death': [
+                    `${fact.label} died near this spot in ${fact.date}.`,
+                    `It was here, in ${fact.date}, that ${fact.label} passed away.`,
+                    `The journey of ${fact.label} ended here in ${fact.date}.`
+                ],
+                'location': [
+                    `You are near ${fact.label}.`,
+                    `${fact.label} stands nearby.`,
+                    `Looking around, you might find ${fact.label}.`
+                ],
+                'event': [
+                    `In ${fact.date}, ${fact.label} happened right here.`,
+                    `${fact.label} took place nearby in ${fact.date}.`,
+                    `This location witnessed ${fact.label} in ${fact.date}.`
+                ],
+                'headquarters': [
+                    `${fact.label} is headquartered nearby.`,
+                    `The headquarters of ${fact.label} can be found here.`,
+                    `${fact.label} operates from this area.`
+                ],
+                'filming': [
+                    `Scenes from ${fact.label} were filmed near here.`,
+                    `${fact.label} used this location as a backdrop.`,
+                    `A film crew for ${fact.label} was once here.`
+                ],
+                'fiction': [
+                    `The story of ${fact.label} is set in this area.`,
+                    `This location features in the plot of ${fact.label}.`,
+                    `${fact.label} takes place nearby.`
+                ]
+            };
+
+            // Generic fallback
+            if (!templates[fact.type]) {
+                return `${fact.label} is nearby.`;
+            }
+
+            const options = templates[fact.type];
+            let text = options[Math.floor(Math.random() * options.length)];
+            
+            // Append description sometimes
+            if (Math.random() > 0.5 && fact.desc) {
+                text += ` (${fact.desc})`;
+            }
+            
+            return text;
+        }
+    }
+
+    const chatter = new AmbientChatter();
+
+    document.getElementById('btn-start').addEventListener('click', () => {
+        // Westminster, London
+        chatter.start(51.5007, -0.1246); 
+    });
+
+    document.getElementById('btn-geo').addEventListener('click', () => {
+        if ("geolocation" in navigator) {
+            document.getElementById('status').innerText = "Locating you...";
+            navigator.geolocation.getCurrentPosition((position) => {
+                chatter.start(position.coords.latitude, position.coords.longitude);
+            }, (err) => {
+                document.getElementById('status').innerText = "Could not get location.";
+            });
+        } else {
+            alert("Geolocation not available.");
+        }
+    });
+
+</script>
+
+</body>
+</html>
