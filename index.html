@@ -133,8 +133,7 @@
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 10) 
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P571 ?date }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -150,8 +149,7 @@
                   }
                   ?item wdt:P19 ?place .
                   ?item wdt:P569 ?date .
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 5)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -166,8 +164,7 @@
                   }
                   ?item wdt:P20 ?place .
                   ?item wdt:P570 ?date .
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 5)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -181,8 +178,7 @@
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P585 ?date . # Point in time
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 2)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -197,8 +193,7 @@
                   }
                   ?item wdt:P159 ?place . # Headquartered here
                   OPTIONAL { ?item wdt:P571 ?date }
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 5)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -213,8 +208,7 @@
                   }
                   ?item wdt:P915 ?place . # Filming location
                   OPTIONAL { ?item wdt:P577 ?date } # Publication date
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 5)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -229,8 +223,7 @@
                   }
                   ?item wdt:P840 ?place . # Narrative location
                   OPTIONAL { ?item wdt:P577 ?date } # Publication date
-                  ?item wikibase:sitelinks ?sitelinks .
-                  FILTER(?sitelinks > 5)
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -242,7 +235,7 @@
                 desc: b.itemDescription ? b.itemDescription.value : "",
                 date: b.date ? this.formatDate(b.date.value) : null,
                 type: b.type.value,
-                sitelinks: parseInt(b.sitelinks.value)
+                sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0
             }));
         }
 
@@ -259,7 +252,7 @@
 
     class AmbientChatter {
         constructor() {
-            this.fetcher = new WikidataFetcher();
+            this.fetcher = new WikidataFetcher(100);
             this.facts = [];
             this.deck = []; // A shuffled deck of facts to read from
             this.displayEl = document.getElementById('chatter-box');
