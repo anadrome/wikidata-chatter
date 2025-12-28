@@ -92,6 +92,7 @@
             
             const queries = [
                 this.getLocationsQuery(lat, lon, radius),
+                this.getBuildingsQuery(lat, lon, radius),
                 this.getBirthsQuery(lat, lon, radius),
                 this.getDeathsQuery(lat, lon, radius),
                 this.getEventsQuery(lat, lon, radius),
@@ -139,6 +140,27 @@
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
+        getBuildingsQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("building" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?item wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  VALUES ?buildingTypes {
+                    wd:Q33506 wd:Q7075 wd:Q16970 wd:Q24354 wd:Q41253
+                    wd:Q23413 wd:Q16917 wd:Q12280 wd:Q55488 wd:Q3918
+                    wd:Q483110 wd:Q2977
+                  }
+                  ?item wdt:P31 ?buildingTypes .
+
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P571 ?date } # Inception/Built
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
         getBirthsQuery(lat, lon, radius) {
             return `
                 SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("birth" AS ?type) ?sitelinks WHERE {
@@ -177,7 +199,23 @@
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
-                  ?item wdt:P585 ?date . # Point in time
+
+                  # Either it has a specific point in time...
+                  {
+                    ?item wdt:P585 ?date .
+                  }
+                  UNION
+                  # ...OR it has a start time AND is one of these specific event types
+                  {
+                    ?item wdt:P580 ?date .
+                    VALUES ?goodClasses {
+                        wd:Q178561 wd:Q198 wd:Q7944 wd:Q168983 wd:Q132241
+                        wd:Q868557 wd:Q464980 wd:Q216048 wd:Q1141386 wd:Q17156793
+                        wd:Q40231 wd:Q273120 wd:Q2020153 wd:Q182832
+                    }
+                    ?item wdt:P31 ?goodClasses .
+                  }
+
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -354,6 +392,11 @@
                     `You are near ${fact.label}`,
                     `${fact.label} stands nearby`,
                     `Looking around, you might find ${fact.label}`
+                ],
+                'building': [
+                    `${fact.label} stands here`,
+                    `You are standing near ${fact.label}`,
+                    `This is the site of ${fact.label}`
                 ],
                 'event': [
                     `In ${fact.date}, ${fact.label} happened right here`,
