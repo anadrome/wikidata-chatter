@@ -240,13 +240,9 @@
         }
 
         formatDate(dateStr) {
-            try {
-                // Wikidata dates look like: +1983-00-00T00:00:00Z
-                const d = dateStr.startsWith('+') ? dateStr.substring(1) : dateStr;
-                return d.split('-')[0]; // use just the year
-            } catch (e) {
-                return null;
-            }
+            const year = parseInt(dateStr);
+            if (isNaN(year)) return null;
+            return year > 0 ? year.toString() : (1 - year) + " BCE";
         }
     }
 
