@@ -280,7 +280,7 @@
                     // If we found enough facts, or this is our last attempt, start rambling
                     if (newFacts.length > 5 || radius === 50) {
                          this.facts = newFacts;
-                         this.statusEl.innerText = `Found ${this.facts.length} echoes from the past (within ${radius}km). Listening...`;
+                         this.statusEl.innerText = `Found ${this.facts.length} items within ${radius}km.`;
                          
                          if (!this.isRambling) {
                              this.isRambling = true;
@@ -352,45 +352,45 @@
         constructSentence(fact) {
             const templates = {
                 'birth': [
-                    `${fact.label} entered the world near here in ${fact.date}.`,
-                    `In ${fact.date}, ${fact.label} was born close by.`,
-                    `The story of ${fact.label} began here in ${fact.date}.`
+                    `${fact.label} entered the world near here in ${fact.date}`,
+                    `In ${fact.date}, ${fact.label} was born close by`,
+                    `The story of ${fact.label} began here in ${fact.date}`
                 ],
                 'death': [
-                    `${fact.label} died near this spot in ${fact.date}.`,
-                    `It was here, in ${fact.date}, that ${fact.label} passed away.`,
-                    `The journey of ${fact.label} ended here in ${fact.date}.`
+                    `${fact.label} died near this spot in ${fact.date}`,
+                    `It was here, in ${fact.date}, that ${fact.label} passed away`,
+                    `The journey of ${fact.label} ended here in ${fact.date}`
                 ],
                 'location': [
-                    `You are near ${fact.label}.`,
-                    `${fact.label} stands nearby.`,
-                    `Looking around, you might find ${fact.label}.`
+                    `You are near ${fact.label}`,
+                    `${fact.label} stands nearby`,
+                    `Looking around, you might find ${fact.label}`
                 ],
                 'event': [
-                    `In ${fact.date}, ${fact.label} happened right here.`,
-                    `${fact.label} took place nearby in ${fact.date}.`,
-                    `This location witnessed ${fact.label} in ${fact.date}.`
+                    `In ${fact.date}, ${fact.label} happened right here`,
+                    `${fact.label} took place nearby in ${fact.date}`,
+                    `This location witnessed ${fact.label} in ${fact.date}`
                 ],
                 'headquarters': [
-                    `${fact.label} is headquartered nearby.`,
-                    `The headquarters of ${fact.label} can be found here.`,
-                    `${fact.label} operates from this area.`
+                    `${fact.label} is headquartered nearby`,
+                    `The headquarters of ${fact.label} can be found here`,
+                    `${fact.label} operates from this area`
                 ],
                 'filming': [
-                    `Scenes from ${fact.label} were filmed near here.`,
-                    `${fact.label} used this location as a backdrop.`,
-                    `A film crew for ${fact.label} was once here.`
+                    `Scenes from ${fact.label} were filmed near here`,
+                    `${fact.label} used this location as a backdrop`,
+                    `A film crew for ${fact.label} was once here`
                 ],
                 'fiction': [
-                    `The story of ${fact.label} is set in this area.`,
-                    `This location features in the plot of ${fact.label}.`,
-                    `${fact.label} takes place nearby.`
+                    `The story of ${fact.label} is set in this area`,
+                    `This location features in the plot of ${fact.label}`,
+                    `${fact.label} takes place nearby`
                 ]
             };
 
             // Generic fallback
             if (!templates[fact.type]) {
-                return `${fact.label} is nearby.`;
+                return `${fact.label} is nearby`;
             }
 
             const options = templates[fact.type];
@@ -400,6 +400,7 @@
             if (Math.random() > 0.5 && fact.desc) {
                 text += ` (${fact.desc})`;
             }
+            text += ".";
             
             return text;
         }
