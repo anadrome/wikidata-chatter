@@ -198,22 +198,22 @@
 
         getLocationsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("location" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("location" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  OPTIONAL { ?item wdt:P576 ?dissolved }
-                  OPTIONAL { ?item wdt:P582 ?endTime }
+                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
+                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
         getBuildingsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("building" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("building" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -227,22 +227,22 @@
                   ?item wdt:P31 ?buildingTypes .
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  OPTIONAL { ?item wdt:P576 ?dissolved }
-                  OPTIONAL { ?item wdt:P582 ?endTime }
+                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
+                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
         getBirthsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("birth" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ?precision ("birth" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P19 ?place .
-                  ?item wdt:P569 ?date .
+                  ?item p:P569/psv:P569 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -250,14 +250,14 @@
 
         getDeathsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("death" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ?precision ("death" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P20 ?place .
-                  ?item wdt:P570 ?date .
+                  ?item p:P570/psv:P570 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -265,7 +265,7 @@
 
         getEventsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("event" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ?precision ("event" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -274,12 +274,12 @@
 
                   # Either it has a specific point in time...
                   {
-                    ?item wdt:P585 ?date .
+                    ?item p:P585/psv:P585 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
                   }
                   UNION
                   # ...OR it has a start time AND is one of these specific event types
                   {
-                    ?item wdt:P580 ?date .
+                    ?item p:P580/psv:P580 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
                     VALUES ?goodClasses {
                         wd:Q178561 wd:Q198 wd:Q7944 wd:Q168983 wd:Q132241
                         wd:Q868557 wd:Q464980 wd:Q216048 wd:Q1141386 wd:Q17156793
@@ -295,15 +295,15 @@
 
         getHeadquartersQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("headquarters" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("headquarters" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P159 ?place . # Headquartered here
-                  OPTIONAL { ?item wdt:P576 ?dissolved }
-                  OPTIONAL { ?item wdt:P582 ?endTime }
+                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
+                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -339,14 +339,14 @@
 
         getFormationQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("formation" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ?precision ("formation" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P740 ?place . # Formed here
-                  OPTIONAL { ?item wdt:P571 ?date } # Inception
+                  OPTIONAL { ?item p:P571/psv:P571 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] } # Inception
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -355,21 +355,54 @@
         processResults(bindings) {
             return bindings.map(b => {
                 const end = b.dissolved || b.endTime;
+                const endPrec = b.dissolved ? b.dissolvedPrec : b.endTimePrec;
                 return {
                     id: b.item.value, // Capture QID for deduplication
                     label: b.itemLabel.value,
                     desc: b.itemDescription ? b.itemDescription.value : "",
-                    date: b.date ? this.formatDate(b.date.value) : null,
+                    date: b.date ? this.formatDate(b.date.value, b.precision ? b.precision.value : null) : null,
                     type: b.type.value,
                     sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0,
-                    ended: end ? this.formatDate(end.value) : null
+                    ended: end ? this.formatDate(end.value, endPrec ? endPrec.value : null) : null
                 };
             });
         }
 
-        formatDate(dateStr) {
+        formatDate(dateStr, precisionStr) {
             const year = parseInt(dateStr);
             if (isNaN(year)) return null;
+
+            const precision = precisionStr ? parseInt(precisionStr) : 9;
+
+            if (precision === 7) { // century
+                const absYear = Math.abs(year);
+                const century = year > 0 ? Math.floor(absYear / 100) + 1 : Math.ceil(absYear / 100);
+                const era = year > 0 ? "" : " BCE";
+
+                // Ordinal suffix
+                const j = century % 10,
+                      k = century % 100;
+                let ordinal = "th";
+                if (j == 1 && k != 11) {
+                    ordinal = "st";
+                }
+                if (j == 2 && k != 12) {
+                    ordinal = "nd";
+                }
+                if (j == 3 && k != 13) {
+                    ordinal = "rd";
+                }
+
+                return `the ${century}${ordinal} century${era}`;
+            }
+
+            if (precision === 8) { // decade
+                const decade = Math.floor(Math.abs(year) / 10) * 10;
+                const era = year > 0 ? "" : " BCE";
+                return `the ${decade}s${era}`;
+            }
+
+            // treat any other precision as year
             return year > 0 ? year.toString() : (1 - year) + " BCE";
         }
     }
