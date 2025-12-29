@@ -105,6 +105,7 @@
         constructor(limit = 15) {
             this.endpoint = "https://query.wikidata.org/sparql";
             this.limit = limit;
+            this.languages = "en,mul,de,fr,es,ru,it,pl,zh,ja,pt,nl,sv,da,no,nn,fi,uk,el,tr,cs,sk,sl,ca";
         }
 
         async fetchNearby(lat, lon, radius = 1) {
@@ -156,7 +157,7 @@
                   }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P571 ?date }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -177,7 +178,7 @@
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P571 ?date } # Inception/Built
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -192,7 +193,7 @@
                   ?item wdt:P19 ?place .
                   ?item wdt:P569 ?date .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -207,7 +208,7 @@
                   ?item wdt:P20 ?place .
                   ?item wdt:P570 ?date .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -237,7 +238,7 @@
                   }
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -252,7 +253,7 @@
                   ?item wdt:P159 ?place . # Headquartered here
                   OPTIONAL { ?item wdt:P571 ?date }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -267,7 +268,7 @@
                   ?item wdt:P915 ?place . # Filming location
                   OPTIONAL { ?item wdt:P577 ?date } # Publication date
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
@@ -282,7 +283,7 @@
                   ?item wdt:P840 ?place . # Narrative location
                   OPTIONAL { ?item wdt:P577 ?date } # Publication date
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
