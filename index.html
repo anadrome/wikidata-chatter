@@ -119,7 +119,8 @@
                 this.getEventsQuery(lat, lon, radius),
                 this.getHeadquartersQuery(lat, lon, radius),
                 this.getFilmingQuery(lat, lon, radius),
-                this.getFictionQuery(lat, lon, radius)
+                this.getFictionQuery(lat, lon, radius),
+                this.getFormationQuery(lat, lon, radius)
             ];
 
             const results = await Promise.all(queries.map(q => this.runQuery(q)));
@@ -148,6 +149,7 @@
                   UNION { ?item wdt:P159 ?place }  # Headquartered here
                   UNION { ?item wdt:P840 ?place }  # Narrative (fiction) location
                   UNION { ?item wdt:P915 ?place }  # Filming location
+                  UNION { ?item wdt:P740 ?place }  # Formed here
                 }`;
 
             try {
@@ -310,6 +312,21 @@
                   }
                   ?item wdt:P840 ?place . # Narrative location
                   OPTIONAL { ?item wdt:P577 ?date } # Publication date
+                  OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
+                } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
+        }
+
+        getFormationQuery(lat, lon, radius) {
+            return `
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("formation" AS ?type) ?sitelinks WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  ?item wdt:P740 ?place . # Formed here
+                  OPTIONAL { ?item wdt:P571 ?date } # Inception
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -531,6 +548,15 @@
                     `The story of ${fact.label} is set in this area`,
                     `This location features in the plot of ${fact.label}`,
                     `${fact.label} takes place nearby`
+                ],
+                'formation': fact.date ? [
+                    `${fact.label} was formed nearby in ${fact.date}`,
+                    `The group ${fact.label} started their journey near here`,
+                    `In ${fact.date}, ${fact.label} was founded close by`
+                ] : [
+                    `${fact.label} was formed nearby`,
+                    `The group ${fact.label} started their journey near here`,
+                    `${fact.label} was founded close by`
                 ]
             };
 
