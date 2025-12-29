@@ -37,10 +37,20 @@
             transition: opacity 1s ease-out, transform 1s ease-out;
             margin-bottom: 1rem;
             color: #4caf50;
+            word-wrap: break-word;
         }
         .message.visible {
             opacity: 1;
             transform: translateY(0);
+        }
+        .message a {
+            color: inherit;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+        }
+        .message a:hover {
+            color: #81c784;
+            text-decoration-style: solid;
         }
         .message.old {
             opacity: 0.3;
@@ -589,7 +599,13 @@
         }
 
         speak(fact) {
-            const sentence = this.constructSentence(fact);
+            // Create a version of the label that is a link
+            const linkedFact = { ...fact };
+            if (fact.type !== 'none') {
+                linkedFact.label = `<a href="${fact.id}" target="_blank">${fact.label}</a>`;
+            }
+
+            const sentence = this.constructSentence(linkedFact);
             
             const msg = document.createElement('div');
             msg.className = 'message';
