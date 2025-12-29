@@ -25,7 +25,7 @@
         #chatter-box {
             font-size: 1.5rem;
             min-height: 200px;
-            display: flex;
+            display: none;
             flex-direction: column;
             justify-content: flex-end;
             margin-bottom: 2rem;
@@ -50,6 +50,7 @@
             font-size: 0.8rem;
             color: #666;
             margin-bottom: 1rem;
+            margin-top: 0.5rem;
         }
         input, button {
             background: #333;
@@ -86,18 +87,36 @@
             line-height: 1;
             padding: 0 10px;
         }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #4caf50;
+            text-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        #setup-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
 
 <div id="container">
     <div id="chatter-box"></div>
-    <div id="status">Enter coordinates or use your location</div>
-    <div id="controls">
-        <input type="text" id="coord-input" placeholder="lat, lon (e.g. 51.5, -0.12)">
-        <button id="btn-geo-fill" title="Use Current Location">⌖</button>
-        <button id="btn-start">Start</button>
+    <div id="setup-screen">
+        <h1>Ambient Wikidata Chatter</h1>
+        <div id="controls">
+            <input type="text" id="coord-input" placeholder="lat, lon (e.g. 51.5, -0.12)">
+            <button id="btn-geo-fill" title="Use Current Location">⌖</button>
+            <button id="btn-start">Start</button>
+        </div>
     </div>
+    <div id="status">Enter coordinates or use your location</div>
 </div>
 
 <script>
@@ -410,7 +429,8 @@
         }
 
         async start(lat, lon) {
-            document.getElementById('controls').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'none';
+            this.displayEl.style.display = 'flex';
             const radii = [1, 5, 20, 50]; // Scan range in km
 
             for (const radius of radii) {
