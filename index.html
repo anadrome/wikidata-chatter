@@ -102,7 +102,7 @@
 
 <script>
     class WikidataFetcher {
-        constructor(limit = 15) {
+        constructor(limit = 100) {
             this.endpoint = "https://query.wikidata.org/sparql";
             this.limit = limit;
             this.languages = "en,mul,de,fr,es,ru,it,pl,zh,ja,pt,nl,sv,da,no,nn,fi,uk,el,tr,cs,sk,sl,ca";
@@ -335,7 +335,7 @@
 
     class AmbientChatter {
         constructor() {
-            this.fetcher = new WikidataFetcher(100);
+            this.fetcher = new WikidataFetcher();
             this.facts = [];
             this.deck = []; // A shuffled deck of facts to read from
             this.displayEl = document.getElementById('chatter-box');
@@ -407,7 +407,7 @@
                     ]);
                     
                     // If we found enough facts, or this is our last attempt, start rambling
-                    if (newFacts.length > 5 || radius === 50) {
+                    if (newFacts.length > 20 || radius === 50) {
                          this.facts = newFacts;
 
                          let msg = `Found ${this.facts.length} items within ${radius}km.`;
@@ -417,6 +417,11 @@
 
                          this.statusEl.innerText = msg;
                          
+                         if (this.facts.length === 0) {
+                             this.speak({ label: "I don't see anything near here.", type: 'none' });
+                             return;
+                         }
+
                          if (!this.isRambling) {
                              this.isRambling = true;
                              this.rambleLoop();
@@ -466,7 +471,7 @@
             msg.className = 'message';
             msg.innerHTML = `
                 ${sentence}
-                <div class="meta">(${fact.type} / ${fact.sitelinks} refs)</div>
+                ${fact.type !== 'none' ? `<div class="meta">(${fact.type} / ${fact.sitelinks} refs)</div>` : ''}
             `;
             
             this.displayEl.appendChild(msg);
@@ -485,6 +490,7 @@
         }
 
         constructSentence(fact) {
+            if (fact.type === 'none') return fact.label;
             const templates = {
                 'birth': [
                     `${fact.label} entered the world near here in ${fact.date}`,
