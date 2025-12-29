@@ -134,6 +134,34 @@
             });
         }
 
+        async fetchTotalCount(lat, lon, radius) {
+            const query = `
+                SELECT (COUNT(DISTINCT ?item) AS ?count) WHERE {
+                  SERVICE wikibase:around {
+                    ?place wdt:P625 ?loc .
+                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${radius}" .
+                  }
+                  { BIND(?place AS ?item) }
+                  UNION { ?item wdt:P19 ?place }   # Born here
+                  UNION { ?item wdt:P20 ?place }   # Died here
+                  UNION { ?item wdt:P159 ?place }  # Headquartered here
+                  UNION { ?item wdt:P840 ?place }  # Narrative (fiction) location
+                  UNION { ?item wdt:P915 ?place }  # Filming location
+                }`;
+
+            try {
+                const url = this.endpoint + "?query=" + encodeURIComponent(query) + "&format=json";
+                const response = await fetch(url);
+                if (!response.ok) return null;
+                const data = await response.json();
+                return parseInt(data.results.bindings[0].count.value);
+            } catch (e) {
+                console.warn("Total count query failed", e);
+                return null;
+            }
+        }
+
         async runQuery(query) {
             const url = this.endpoint + "?query=" + encodeURIComponent(query) + "&format=json";
             try {
@@ -373,12 +401,21 @@
                 this.statusEl.innerText = `Scanning wikidata around ${lat.toFixed(4)}, ${lon.toFixed(4)} (${radius}km radius)...`;
                 
                 try {
-                    const newFacts = await this.fetcher.fetchNearby(lat, lon, radius);
+                    const [newFacts, totalCount] = await Promise.all([
+                        this.fetcher.fetchNearby(lat, lon, radius),
+                        this.fetcher.fetchTotalCount(lat, lon, radius)
+                    ]);
                     
                     // If we found enough facts, or this is our last attempt, start rambling
                     if (newFacts.length > 5 || radius === 50) {
                          this.facts = newFacts;
-                         this.statusEl.innerText = `Found ${this.facts.length} items within ${radius}km.`;
+
+                         let msg = `Found ${this.facts.length} items within ${radius}km.`;
+                         if (totalCount !== null && totalCount > this.facts.length) {
+                             msg = `Found ${totalCount} items within ${radius}km. Selected ${this.facts.length}.`;
+                         }
+
+                         this.statusEl.innerText = msg;
                          
                          if (!this.isRambling) {
                              this.isRambling = true;
