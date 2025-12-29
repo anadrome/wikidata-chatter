@@ -51,13 +51,18 @@
             color: #666;
             margin-bottom: 1rem;
         }
-        button {
+        input, button {
             background: #333;
             color: #fff;
             border: 1px solid #555;
-            padding: 10px 20px;
-            cursor: pointer;
+            padding: 0 15px;
             font-family: inherit;
+            box-sizing: border-box;
+            height: 42px;
+            vertical-align: middle;
+        }
+        button {
+            cursor: pointer;
         }
         button:hover {
             background: #444;
@@ -67,16 +72,31 @@
             color: #555;
             margin-top: 0.2rem;
         }
+        #controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+        }
+        input {
+            width: 250px;
+        }
+        #btn-geo-fill {
+            font-size: 1.2em;
+            line-height: 1;
+            padding: 0 10px;
+        }
     </style>
 </head>
 <body>
 
 <div id="container">
     <div id="chatter-box"></div>
-    <div id="status">Waiting for location...</div>
+    <div id="status">Enter coordinates or use your location</div>
     <div id="controls">
-        <button id="btn-start">Use London</button>
-        <button id="btn-geo">Use My GPS Location</button>
+        <input type="text" id="coord-input" placeholder="lat, lon (e.g. 51.5, -0.12)">
+        <button id="btn-geo-fill" title="Use Current Location">⌖</button>
+        <button id="btn-start">Start</button>
     </div>
 </div>
 
@@ -291,7 +311,57 @@
             this.deck = []; // A shuffled deck of facts to read from
             this.displayEl = document.getElementById('chatter-box');
             this.statusEl = document.getElementById('status');
+            this.inputEl = document.getElementById('coord-input');
             this.isRambling = false;
+
+            this.init();
+        }
+
+        init() {
+            document.getElementById('btn-start').addEventListener('click', () => {
+                this.parseAndStart(this.inputEl.value);
+            });
+
+            document.getElementById('btn-geo-fill').addEventListener('click', () => {
+                if ("geolocation" in navigator) {
+                    this.statusEl.innerText = "Locating you...";
+                    navigator.geolocation.getCurrentPosition((position) => {
+                        const lat = position.coords.latitude.toFixed(5);
+                        const lon = position.coords.longitude.toFixed(5);
+                        this.inputEl.value = `${lat}, ${lon}`;
+                        this.statusEl.innerText = "Coordinates found. Click Start.";
+                    }, (err) => {
+                        this.statusEl.innerText = "Could not get location: " + err.message;
+                    });
+                } else {
+                    this.statusEl.innerText = "Geolocation not supported.";
+                }
+            });
+
+            // Allow "Enter" key in input
+            this.inputEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.parseAndStart(this.inputEl.value);
+            });
+        }
+
+        parseAndStart(coordsStr) {
+            if (!coordsStr) {
+                this.statusEl.innerText = "Please enter coordinates.";
+                return;
+            }
+            const parts = coordsStr.split(',').map(p => p.trim());
+            if (parts.length !== 2) {
+                this.statusEl.innerText = "Invalid format. Use 'lat, lon'.";
+                return;
+            }
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+
+            if (isNaN(lat) || isNaN(lon)) {
+                this.statusEl.innerText = "Invalid coordinates.";
+                return;
+            }
+            this.start(lat, lon);
         }
 
         async start(lat, lon) {
@@ -438,26 +508,7 @@
         }
     }
 
-    const chatter = new AmbientChatter();
-
-    document.getElementById('btn-start').addEventListener('click', () => {
-        // Westminster, London
-        chatter.start(51.5007, -0.1246); 
-    });
-
-    document.getElementById('btn-geo').addEventListener('click', () => {
-        if ("geolocation" in navigator) {
-            document.getElementById('status').innerText = "Locating you...";
-            navigator.geolocation.getCurrentPosition((position) => {
-                chatter.start(position.coords.latitude, position.coords.longitude);
-            }, (err) => {
-                document.getElementById('status').innerText = "Could not get location.";
-            });
-        } else {
-            alert("Geolocation not available.");
-        }
-    });
-
+    new AmbientChatter();
 </script>
 
 </body>
