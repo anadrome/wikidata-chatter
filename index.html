@@ -198,21 +198,22 @@
 
         getLocationsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("location" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("location" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  OPTIONAL { ?item wdt:P571 ?date }
+                  OPTIONAL { ?item wdt:P576 ?dissolved }
+                  OPTIONAL { ?item wdt:P582 ?endTime }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
 
         getBuildingsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ("building" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("building" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -226,6 +227,8 @@
                   ?item wdt:P31 ?buildingTypes .
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P576 ?dissolved }
+                  OPTIONAL { ?item wdt:P582 ?endTime }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
         }
@@ -292,14 +295,15 @@
 
         getHeadquartersQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("headquarters" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?dissolved ?endTime ("headquarters" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P159 ?place . # Headquartered here
-                  OPTIONAL { ?item wdt:P571 ?date }
+                  OPTIONAL { ?item wdt:P576 ?dissolved }
+                  OPTIONAL { ?item wdt:P582 ?endTime }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -307,14 +311,13 @@
 
         getFilmingQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("filming" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ("filming" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P915 ?place . # Filming location
-                  OPTIONAL { ?item wdt:P577 ?date } # Publication date
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -322,14 +325,13 @@
 
         getFictionQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?itemDescription ?date ("fiction" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?itemDescription ("fiction" AS ?type) ?sitelinks WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P840 ?place . # Narrative location
-                  OPTIONAL { ?item wdt:P577 ?date } # Publication date
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -351,14 +353,18 @@
         }
 
         processResults(bindings) {
-            return bindings.map(b => ({
-                id: b.item.value, // Capture QID for deduplication
-                label: b.itemLabel.value,
-                desc: b.itemDescription ? b.itemDescription.value : "",
-                date: b.date ? this.formatDate(b.date.value) : null,
-                type: b.type.value,
-                sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0
-            }));
+            return bindings.map(b => {
+                const end = b.dissolved || b.endTime;
+                return {
+                    id: b.item.value, // Capture QID for deduplication
+                    label: b.itemLabel.value,
+                    desc: b.itemDescription ? b.itemDescription.value : "",
+                    date: b.date ? this.formatDate(b.date.value) : null,
+                    type: b.type.value,
+                    sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0,
+                    ended: end ? this.formatDate(end.value) : null
+                };
+            });
         }
 
         formatDate(dateStr) {
@@ -538,12 +544,20 @@
                     `It was here, in ${fact.date}, that ${fact.label} passed away`,
                     `The journey of ${fact.label} ended here in ${fact.date}`
                 ],
-                'location': [
+                'location': fact.ended ? [
+                    `You are near the former location of ${fact.label}`,
+                    `Until ${fact.ended}, ${fact.label} was nearby`,
+                    `Looking around, you might have once found ${fact.label}`
+                ] : [
                     `You are near ${fact.label}`,
                     `${fact.label} stands nearby`,
                     `Looking around, you might find ${fact.label}`
                 ],
-                'building': [
+                'building': fact.ended ? [
+                    `${fact.label} once stood here`,
+                    `Before ${fact.ended}, ${fact.label} was near here`,
+                    `This was the site of ${fact.label}`
+                ] : [
                     `${fact.label} stands here`,
                     `You are standing near ${fact.label}`,
                     `This is the site of ${fact.label}`
@@ -553,7 +567,11 @@
                     `${fact.label} took place nearby in ${fact.date}`,
                     `This location witnessed ${fact.label} in ${fact.date}`
                 ],
-                'headquarters': [
+                'headquarters': fact.ended ? [
+                    `Before ${fact.ended}, ${fact.label} was headquartered nearby`,
+                    `The headquarters of ${fact.label} used to be near here`,
+                    `${fact.label} operated from this area until ${fact.ended}`
+                ] : [
                     `${fact.label} is headquartered nearby`,
                     `The headquarters of ${fact.label} can be found here`,
                     `${fact.label} operates from this area`
