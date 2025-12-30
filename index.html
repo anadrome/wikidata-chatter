@@ -622,7 +622,7 @@
         async start(lat, lon) {
             document.getElementById('setup-screen').style.display = 'none';
             this.displayEl.style.display = 'flex';
-            const radii = [1, 5, 20, 50]; // Scan range in km
+            const radii = [1, 2, 5, 10, 20, 50]; // Scan range in km
 
             for (const radius of radii) {
                 this.statusEl.innerText = `Scanning wikidata around ${lat.toFixed(4)}, ${lon.toFixed(4)} (${radius}km radius)...`;
@@ -645,7 +645,7 @@
                          this.statusEl.innerText = msg;
 
                          if (this.facts.length === 0) {
-                             this.speak({ label: "I don't see anything near here.", type: 'none' });
+                             this.speak({ label: "Seems like there's not much nearby.", type: 'none' });
                              return;
                          }
 
