@@ -256,8 +256,16 @@
                   }
                   OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
-                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
+                  OPTIONAL {
+                    ?item p:P576 ?stmtDissolved .
+                    ?stmtDissolved psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] .
+                    ?stmtDissolved rdf:type wikibase:BestRank .
+                  }
+                  OPTIONAL {
+                    ?item p:P582 ?stmtEnd .
+                    ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
+                    ?stmtEnd rdf:type wikibase:BestRank .
+                  }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -279,8 +287,16 @@
                   ?item wdt:P31 ?buildingTypes .
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
-                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
-                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
+                  OPTIONAL {
+                    ?item p:P576 ?stmtDissolved .
+                    ?stmtDissolved psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] .
+                    ?stmtDissolved rdf:type wikibase:BestRank .
+                  }
+                  OPTIONAL {
+                    ?item p:P582 ?stmtEnd .
+                    ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
+                    ?stmtEnd rdf:type wikibase:BestRank .
+                  }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -295,7 +311,9 @@
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P19 ?place .
-                  ?item p:P569/psv:P569 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                  ?item p:P569 ?stmt .
+                  ?stmt psv:P569 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                  ?stmt rdf:type wikibase:BestRank .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
@@ -311,7 +329,9 @@
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P20 ?place .
-                  ?item p:P570/psv:P570 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                  ?item p:P570 ?stmt .
+                  ?stmt psv:P570 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                  ?stmt rdf:type wikibase:BestRank .
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
@@ -329,12 +349,16 @@
 
                   # Either it has a specific point in time...
                   {
-                    ?item p:P585/psv:P585 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                    ?item p:P585 ?stmt .
+                    ?stmt psv:P585 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                    ?stmt rdf:type wikibase:BestRank .
                   }
                   UNION
                   # ...OR it has a start time AND is one of these specific event types
                   {
-                    ?item p:P580/psv:P580 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                    ?item p:P580 ?stmt .
+                    ?stmt psv:P580 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                    ?stmt rdf:type wikibase:BestRank .
                     VALUES ?goodClasses {
                         wd:Q178561 wd:Q198 wd:Q7944 wd:Q168983 wd:Q132241
                         wd:Q868557 wd:Q464980 wd:Q216048 wd:Q1141386 wd:Q17156793
@@ -359,8 +383,16 @@
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P159 ?place . # Headquartered here
-                  OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
-                  OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
+                  OPTIONAL {
+                    ?item p:P576 ?stmtDissolved .
+                    ?stmtDissolved psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] .
+                    ?stmtDissolved rdf:type wikibase:BestRank .
+                  }
+                  OPTIONAL {
+                    ?item p:P582 ?stmtEnd .
+                    ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
+                    ?stmtEnd rdf:type wikibase:BestRank .
+                  }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
@@ -409,7 +441,11 @@
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
                   ?item wdt:P740 ?place . # Formed here
-                  OPTIONAL { ?item p:P571/psv:P571 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] } # Inception
+                  OPTIONAL {
+                    ?item p:P571 ?stmt .
+                    ?stmt psv:P571 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] .
+                    ?stmt rdf:type wikibase:BestRank .
+                  } # Inception
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
