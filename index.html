@@ -248,12 +248,13 @@
 
         getLocationsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("location" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("location" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${radius}" .
                   }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
                   OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
@@ -264,7 +265,7 @@
 
         getBuildingsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("building" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("building" AS ?type) ?sitelinks ?buildingTypesLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -287,7 +288,7 @@
 
         getBirthsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("birth" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("birth" AS ?type) ?sitelinks ?placeLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -303,7 +304,7 @@
 
         getDeathsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("death" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("death" AS ?type) ?sitelinks ?placeLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -319,7 +320,7 @@
 
         getEventsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("event" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("event" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -343,6 +344,7 @@
                   }
 
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -350,7 +352,7 @@
 
         getHeadquartersQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("headquarters" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -360,6 +362,7 @@
                   OPTIONAL { ?item p:P576/psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] }
                   OPTIONAL { ?item p:P582/psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -367,7 +370,7 @@
 
         getFilmingQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ("filming" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ("filming" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -375,6 +378,7 @@
                   }
                   ?item wdt:P915 ?place . # Filming location
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -382,7 +386,7 @@
 
         getFictionQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ("fiction" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ("fiction" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -390,6 +394,7 @@
                   }
                   ?item wdt:P840 ?place . # Narrative location
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -397,7 +402,7 @@
 
         getFormationQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("formation" AS ?type) ?sitelinks WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("formation" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -406,6 +411,7 @@
                   ?item wdt:P740 ?place . # Formed here
                   OPTIONAL { ?item p:P571/psv:P571 [ wikibase:timeValue ?date; wikibase:timePrecision ?precision ] } # Inception
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
+                  OPTIONAL { ?item wdt:P31 ?instance . }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -415,6 +421,12 @@
             return bindings.map(b => {
                 const end = b.dissolved || b.endTime;
                 const endPrec = b.dissolved ? b.dissolvedPrec : b.endTimePrec;
+
+                let subtype = null;
+                if (b.placeLabel) subtype = b.placeLabel.value;
+                else if (b.buildingTypesLabel) subtype = b.buildingTypesLabel.value;
+                else if (b.instanceLabel) subtype = b.instanceLabel.value;
+
                 return {
                     id: b.item.value, // Capture QID for deduplication
                     label: b.itemLabel.value,
@@ -422,7 +434,8 @@
                     date: b.date ? this.formatDate(b.date.value, b.precision ? b.precision.value : null) : null,
                     type: b.type.value,
                     sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0,
-                    ended: end ? this.formatDate(end.value, endPrec ? endPrec.value : null) : null
+                    ended: end ? this.formatDate(end.value, endPrec ? endPrec.value : null) : null,
+                    subtype: subtype
                 };
             });
         }
@@ -607,11 +620,17 @@
 
             const sentence = this.constructSentence(linkedFact);
             
+            // Combine type and subtype for meta display
+            let metaInfo = fact.type;
+            if (fact.subtype && fact.subtype.toLowerCase() !== fact.type.toLowerCase()) {
+                metaInfo += ` / ${fact.subtype}`;
+            }
+
             const msg = document.createElement('div');
             msg.className = 'message';
             msg.innerHTML = `
                 ${sentence}
-                ${fact.type !== 'none' ? `<div class="meta">(${fact.type} / ${fact.sitelinks} refs)</div>` : ''}
+                ${fact.type !== 'none' ? `<div class="meta">(${metaInfo})</div>` : ''}
             `;
             
             this.displayEl.appendChild(msg);
