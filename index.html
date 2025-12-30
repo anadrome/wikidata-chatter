@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ambient Wikidata Chatter</title>
+    <title>Local Traces</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -20,6 +20,7 @@
         #container {
             width: 80%;
             max-width: 800px;
+            min-width: 320px;
             text-align: center;
         }
         #chatter-box {
@@ -70,7 +71,6 @@
             font-family: inherit;
             box-sizing: border-box;
             height: 42px;
-            vertical-align: middle;
         }
         button {
             cursor: pointer;
@@ -99,11 +99,24 @@
         }
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 2rem;
+            margin-bottom: 0.5rem;
             color: #4caf50;
             text-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
             letter-spacing: 2px;
             text-transform: uppercase;
+        }
+        #footer {
+            position: fixed;
+            bottom: 20px;
+            font-size: 0.8rem;
+            color: #444;
+        }
+        #footer a {
+            color: inherit;
+            text-decoration: none;
+        }
+        #footer a:hover {
+            text-decoration: underline;
         }
         #setup-screen {
             display: flex;
@@ -119,7 +132,7 @@
 <div id="container">
     <div id="chatter-box"></div>
     <div id="setup-screen">
-        <h1>Ambient Wikidata Chatter</h1>
+        <h1>Local Traces</h1>
         <div id="controls">
             <input type="text" id="coord-input" placeholder="lat, lon (e.g. 51.5, -0.12)">
             <button id="btn-geo-fill" title="Use Current Location">⌖</button>
@@ -129,17 +142,20 @@
     <div id="status">Enter coordinates or use your location</div>
 </div>
 
+<div id="footer">Powered by <a href="https://www.wikidata.org/" target="_blank">Wikidata</a></div>
+
 <script>
     class WikidataFetcher {
         constructor(limit = 100) {
             this.endpoint = "https://query.wikidata.org/sparql";
             this.limit = limit;
-            this.languages = "en,mul,de,fr,es,ru,it,pl,zh,ja,pt,nl,sv,da,no,nn,fi,uk,el,tr,cs,sk,sl,ca";
+            // start with top-10 Wikipedias; repairLabels() does fallback if needed
+            this.languages = "en,mul,de,fr,es,ru,it,pl,zh,ja,pt";
         }
 
         async fetchNearby(lat, lon, radius = 1) {
             console.log(`Fetching data for ${lat}, ${lon}...`);
-            
+
             const queries = [
                 this.getLocationsQuery(lat, lon, radius),
                 this.getBuildingsQuery(lat, lon, radius),
@@ -608,15 +624,15 @@
 
             for (const radius of radii) {
                 this.statusEl.innerText = `Scanning wikidata around ${lat.toFixed(4)}, ${lon.toFixed(4)} (${radius}km radius)...`;
-                
+
                 try {
                     const [newFacts, totalCount] = await Promise.all([
                         this.fetcher.fetchNearby(lat, lon, radius),
                         this.fetcher.fetchTotalCount(lat, lon, radius)
                     ]);
-                    
+
                     // If we found enough facts, or this is our last attempt, start rambling
-                    if (newFacts.length > 20 || radius === 50) {
+                    if (newFacts.length >= 50 || radius === 50) {
                          this.facts = newFacts;
 
                          let msg = `Found ${this.facts.length} items within ${radius}km.`;
@@ -625,7 +641,7 @@
                          }
 
                          this.statusEl.innerText = msg;
-                         
+
                          if (this.facts.length === 0) {
                              this.speak({ label: "I don't see anything near here.", type: 'none' });
                              return;
@@ -661,7 +677,7 @@
             const fact = this.deck.pop();
             this.lastFact = fact;
             this.speak(fact);
-            
+
             // Schedule next fact (random interval between 4s and 8s)
             setTimeout(() => this.rambleLoop(), 4000 + Math.random() * 4000);
         }
@@ -681,7 +697,7 @@
             }
 
             const sentence = this.constructSentence(linkedFact);
-            
+
             // Combine type and subtype for meta display
             let metaInfo = fact.type;
             if (fact.subtype && fact.subtype.toLowerCase() !== fact.type.toLowerCase()) {
@@ -694,19 +710,20 @@
                 ${sentence}
                 ${fact.type !== 'none' ? `<div class="meta">(${metaInfo})</div>` : ''}
             `;
-            
+
             this.displayEl.appendChild(msg);
-            
+
             // Trigger animation
             setTimeout(() => msg.classList.add('visible'), 50);
 
-            // Fade out old messages
+            // Manage old messages
             const messages = this.displayEl.querySelectorAll('.message');
-            if (messages.length > 3) {
+
+            if (messages.length > 4) {
+                messages[0].remove();
+                messages[1].classList.add('old');
+            } else if (messages.length === 4) {
                 messages[0].classList.add('old');
-                if (messages.length > 5) {
-                    messages[0].remove();
-                }
             }
         }
 
@@ -729,13 +746,13 @@
                     `Looking around, you might have once found ${fact.label}`
                 ] : [
                     `You are near ${fact.label}`,
-                    `${fact.label} stands nearby`,
+                    `${fact.label} is nearby`,
                     `Looking around, you might find ${fact.label}`
                 ],
                 'building': fact.ended ? [
-                    `${fact.label} once stood here`,
+                    `${fact.label} stood here until ${fact.ended}`,
                     `Before ${fact.ended}, ${fact.label} was near here`,
-                    `This was the site of ${fact.label}`
+                    `This was the former site of ${fact.label}`
                 ] : [
                     `${fact.label} stands here`,
                     `You are standing near ${fact.label}`,
@@ -783,13 +800,13 @@
 
             const options = templates[fact.type];
             let text = options[Math.floor(Math.random() * options.length)];
-            
+
             // Append description sometimes
             if (Math.random() > 0.5 && fact.desc) {
                 text += ` (${fact.desc})`;
             }
             text += ".";
-            
+
             return text;
         }
     }
