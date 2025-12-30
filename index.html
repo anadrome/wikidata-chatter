@@ -248,7 +248,7 @@
 
         getLocationsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("location" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("location" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -266,6 +266,11 @@
                     ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
                     ?stmtEnd rdf:type wikibase:BestRank .
                   }
+                  OPTIONAL {
+                    ?item p:P3999 ?stmtClosed .
+                    ?stmtClosed psv:P3999 [ wikibase:timeValue ?closed; wikibase:timePrecision ?closedPrec ] .
+                    ?stmtClosed rdf:type wikibase:BestRank .
+                  }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
                 } ORDER BY DESC(?sitelinks) LIMIT ${this.limit}`;
@@ -273,7 +278,7 @@
 
         getBuildingsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("building" AS ?type) ?sitelinks ?buildingTypesLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("building" AS ?type) ?sitelinks ?buildingTypesLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -296,6 +301,11 @@
                     ?item p:P582 ?stmtEnd .
                     ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
                     ?stmtEnd rdf:type wikibase:BestRank .
+                  }
+                  OPTIONAL {
+                    ?item p:P3999 ?stmtClosed .
+                    ?stmtClosed psv:P3999 [ wikibase:timeValue ?closed; wikibase:timePrecision ?closedPrec ] .
+                    ?stmtClosed rdf:type wikibase:BestRank .
                   }
                   OPTIONAL { ?item schema:description ?enDescription . FILTER(LANG(?enDescription) = "en") }
                   SERVICE wikibase:label { bd:serviceParam wikibase:language "${this.languages}". }
@@ -376,7 +386,7 @@
 
         getHeadquartersQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -392,6 +402,11 @@
                     ?item p:P582 ?stmtEnd .
                     ?stmtEnd psv:P582 [ wikibase:timeValue ?endTime; wikibase:timePrecision ?endTimePrec ] .
                     ?stmtEnd rdf:type wikibase:BestRank .
+                  }
+                  OPTIONAL {
+                    ?item p:P3999 ?stmtClosed .
+                    ?stmtClosed psv:P3999 [ wikibase:timeValue ?closed; wikibase:timePrecision ?closedPrec ] .
+                    ?stmtClosed rdf:type wikibase:BestRank .
                   }
                   OPTIONAL { ?item wikibase:sitelinks ?sitelinks . }
                   OPTIONAL { ?item wdt:P31 ?instance . }
@@ -455,8 +470,19 @@
 
         processResults(bindings) {
             return bindings.map(b => {
-                const end = b.dissolved || b.endTime;
-                const endPrec = b.dissolved ? b.dissolvedPrec : b.endTimePrec;
+                let end = null;
+                let endPrec = null;
+
+                if (b.dissolved) {
+                    end = b.dissolved;
+                    endPrec = b.dissolvedPrec;
+                } else if (b.endTime) {
+                    end = b.endTime;
+                    endPrec = b.endTimePrec;
+                } else if (b.closed) {
+                    end = b.closed;
+                    endPrec = b.closedPrec;
+                }
 
                 let subtype = null;
                 if (b.placeLabel) subtype = b.placeLabel.value;
