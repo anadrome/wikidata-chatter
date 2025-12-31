@@ -412,6 +412,7 @@
                       bd:serviceParam wikibase:radius "${radius}" .
                     }
                     ?item wdt:P159 ?place . # Headquartered here (standard city/place)
+                    FILTER NOT EXISTS { ?item p:P159/pq:P625 ?anyCoord }
                   }
                   UNION
                   {
