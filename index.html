@@ -405,12 +405,23 @@
         getHeadquartersQuery(lat, lon, radius) {
             return `
                 SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
-                  SERVICE wikibase:around {
-                    ?place wdt:P625 ?loc .
-                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
-                    bd:serviceParam wikibase:radius "${radius}" .
+                  {
+                    SERVICE wikibase:around {
+                      ?place wdt:P625 ?loc .
+                      bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                      bd:serviceParam wikibase:radius "${radius}" .
+                    }
+                    ?item wdt:P159 ?place . # Headquartered here (standard city/place)
                   }
-                  ?item wdt:P159 ?place . # Headquartered here
+                  UNION
+                  {
+                    SERVICE wikibase:around {
+                      ?stmt pq:P625 ?loc .
+                      bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                      bd:serviceParam wikibase:radius "${radius}" .
+                    }
+                    ?item p:P159 ?stmt . # Headquartered here (specific qualifier coord)
+                  }
                   OPTIONAL {
                     ?item p:P576 ?stmtDissolved .
                     ?stmtDissolved psv:P576 [ wikibase:timeValue ?dissolved; wikibase:timePrecision ?dissolvedPrec ] .
