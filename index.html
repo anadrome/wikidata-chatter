@@ -22,16 +22,67 @@
             max-width: 800px;
             min-width: 320px;
             text-align: center;
+            transition: max-width 0.5s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #container.running {
+            max-width: 1200px;
+            gap: 1rem;
         }
         #chatter-box {
-            font-size: 1.5rem;
-            min-height: 200px;
+            font-size: 1.1rem;
+            min-height: 150px;
             display: none;
             flex-direction: column;
             justify-content: flex-end;
-            margin-bottom: 2rem;
             text-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            width: 100%;
         }
+        #map-canvas {
+            width: 100%;
+            max-width: 300px;
+            max-height: 40vh;
+            aspect-ratio: 1 / 1;
+            display: none;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 50%; /* optional: circular frame to match the radius concept */
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            object-fit: contain;
+        }
+        #map-canvas.visible {
+            display: block;
+            opacity: 1;
+        }
+        @media (min-width: 900px) {
+            #container.running {
+                flex-direction: row;
+                align-items: center;
+                text-align: left;
+                gap: 2rem;
+            }
+            #left-panel {
+                width: auto;
+                max-width: 400px;
+                flex-shrink: 0;
+                margin-right: 2rem;
+            }
+            #chatter-box {
+                align-items: flex-start;
+                text-align: left;
+                font-size: 1.5rem;
+                min-height: 200px;
+            }
+            #map-canvas {
+                flex-shrink: 0;
+                max-width: 400px;
+                max-height: none;
+            }
+        }
+
         .message {
             opacity: 0;
             transform: translateY(20px);
@@ -64,6 +115,7 @@
             color: #666;
             margin-bottom: 1rem;
             margin-top: 0.5rem;
+            width: 100%;
         }
         input, button {
             background: #333;
@@ -126,12 +178,55 @@
             align-items: center;
             justify-content: center;
             transition: opacity 0.5s ease-in-out;
+            width: 100%;
+            text-align: center;
+        }
+        #setup-screen.hidden {
+             display: none;
+        }
+        #left-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        #status {
+            text-align: center;
+        }
+        #container:not(.running) {
+            flex-direction: column;
+        }
+        #container:not(.running) #setup-screen {
+            order: 0;
+            margin-bottom: 1rem;
+        }
+        #container:not(.running) #left-panel {
+            order: 1;
+        }
+
+        @media (min-width: 900px) {
+            #container.running {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: center;
+                text-align: left;
+            }
+            #left-panel {
+                width: auto;
+                max-width: 400px;
+                flex-shrink: 0;
+                margin-right: 2rem;
+            }
         }
     </style>
 </head>
 <body>
 
 <div id="container">
+    <div id="left-panel">
+        <canvas id="map-canvas"></canvas>
+        <div id="status">Enter coordinates or use your location</div>
+    </div>
     <div id="chatter-box"></div>
     <div id="setup-screen">
         <h1>Local Traces</h1>
@@ -141,7 +236,6 @@
             <button id="btn-start">Start</button>
         </div>
     </div>
-    <div id="status">Enter coordinates or use your location</div>
 </div>
 
 <div id="footer">Powered by <a href="https://www.wikidata.org/" target="_blank">Wikidata</a></div>
@@ -223,8 +317,8 @@
         }
 
         async fetchTotalCount(lat, lon, radius) {
-            const query = `
-                SELECT (COUNT(DISTINCT ?item) AS ?count) WHERE {
+             const query = `
+                SELECT ?loc WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -237,18 +331,34 @@
                   UNION { ?item wdt:P840 ?place }  # Narrative (fiction) location
                   UNION { ?item wdt:P915 ?place }  # Filming location
                   UNION { ?item wdt:P740 ?place }  # Formed here
-                }`;
+                } LIMIT 3000`;
 
-            try {
+             // Calculate bounds for the renderer (bounding box of the circle)
+             const latOffset = radius / 111.0;
+             const lonOffset = radius / (111.0 * Math.cos(lat * Math.PI / 180));
+             const bounds = {
+                 minLat: lat - latOffset,
+                 maxLat: lat + latOffset,
+                 minLon: lon - lonOffset,
+                 maxLon: lon + lonOffset
+             };
+
+             try {
                 const url = this.endpoint + "?query=" + encodeURIComponent(query) + "&format=json";
                 const response = await fetch(url);
-                if (!response.ok) return null;
+                if (!response.ok) return { points: [], bounds };
                 const data = await response.json();
-                return parseInt(data.results.bindings[0].count.value);
-            } catch (e) {
-                console.warn("Total count query failed", e);
-                return null;
-            }
+
+                const points = data.results.bindings.map(b => {
+                     const match = /Point\(([^ ]+) ([^ ]+)\)/.exec(b.loc.value);
+                     return match ? { lon: parseFloat(match[1]), lat: parseFloat(match[2]) } : null;
+                 }).filter(p => p);
+
+                 return { points, bounds };
+             } catch (e) {
+                 console.warn("Density fetch failed", e);
+                 return { points: [], bounds };
+             }
         }
 
         async runQuery(query) {
@@ -266,7 +376,7 @@
 
         getLocationsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("location" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("location" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -296,7 +406,7 @@
 
         getBuildingsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("building" AS ?type) ?sitelinks ?buildingTypesLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("building" AS ?type) ?sitelinks ?buildingTypesLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -332,7 +442,7 @@
 
         getBirthsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("birth" AS ?type) ?sitelinks ?placeLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?date ?precision ("birth" AS ?type) ?sitelinks ?placeLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -350,7 +460,7 @@
 
         getDeathsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("death" AS ?type) ?sitelinks ?placeLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?date ?precision ("death" AS ?type) ?sitelinks ?placeLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -368,7 +478,7 @@
 
         getEventsQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("event" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?date ?precision ("event" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?item wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -404,7 +514,7 @@
 
         getHeadquartersQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?dissolved ?dissolvedPrec ?endTime ?endTimePrec ?closed ?closedPrec ("headquarters" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   {
                     SERVICE wikibase:around {
                       ?place wdt:P625 ?loc .
@@ -447,7 +557,7 @@
 
         getFilmingQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ("filming" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ("filming" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -463,7 +573,7 @@
 
         getFictionQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ("fiction" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ("fiction" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -479,7 +589,7 @@
 
         getFormationQuery(lat, lon, radius) {
             return `
-                SELECT DISTINCT ?item ?itemLabel ?enDescription ?date ?precision ("formation" AS ?type) ?sitelinks ?instanceLabel WHERE {
+                SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?date ?precision ("formation" AS ?type) ?sitelinks ?instanceLabel WHERE {
                   SERVICE wikibase:around {
                     ?place wdt:P625 ?loc .
                     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -519,6 +629,15 @@
                 else if (b.buildingTypesLabel) subtype = b.buildingTypesLabel.value;
                 else if (b.instanceLabel) subtype = b.instanceLabel.value;
 
+                let lat = null, lon = null;
+                if (b.loc) {
+                    const match = /Point\(([^ ]+) ([^ ]+)\)/.exec(b.loc.value);
+                    if (match) {
+                        lon = parseFloat(match[1]);
+                        lat = parseFloat(match[2]);
+                    }
+                }
+
                 return {
                     id: b.item.value, // Capture QID for deduplication
                     label: b.itemLabel.value,
@@ -527,7 +646,9 @@
                     type: b.type.value,
                     sitelinks: b.sitelinks ? parseInt(b.sitelinks.value) : 0,
                     ended: end ? this.formatDate(end.value, endPrec ? endPrec.value : null) : null,
-                    subtype: subtype
+                    subtype: subtype,
+                    lat: lat,
+                    lon: lon
                 };
             });
         }
@@ -571,9 +692,98 @@
         }
     }
 
+    class MapRenderer {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.size = 600;
+            this.canvas.width = this.size;
+            this.canvas.height = this.size;
+            this.currentParams = null;
+        }
+
+        render(lat, lon, radius, densityData) {
+            // Add jitter to points if not present to separate dense areas
+            if (densityData.points) {
+                densityData.points.forEach(p => {
+                    if (p.dx === undefined) {
+                        // +/- 2.5 pixels jitter on a 600px canvas
+                        p.dx = (Math.random() - 0.5) * 5;
+                        p.dy = (Math.random() - 0.5) * 5;
+                    }
+                });
+            }
+            this.currentParams = { lat, lon, radius, densityData };
+            this._draw();
+        }
+
+        highlightPoint(hLat, hLon) {
+            this._draw(hLat, hLon);
+        }
+
+        _draw(hLat, hLon) {
+            if (!this.currentParams) return;
+            const { lat, lon, radius, densityData } = this.currentParams;
+            const { points, bounds } = densityData;
+            const ctx = this.ctx;
+            const size = this.size;
+
+            ctx.clearRect(0, 0, size, size);
+
+            const getX = (pLon) => ((pLon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * size;
+            const getY = (pLat) => size - ((pLat - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * size;
+
+            // Draw scan radius circle
+            const centerPX = getX(lon);
+            const centerPY = getY(lat);
+            const edgePX = getX(lon + (radius / (111.0 * Math.cos(lat * Math.PI / 180))));
+            const pixelRadius = Math.abs(edgePX - centerPX);
+
+            ctx.beginPath();
+            ctx.arc(centerPX, centerPY, pixelRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(76, 175, 80, 0.2)';
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw density points
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.8)';
+            points.forEach(p => {
+                const x = getX(p.lon) + (p.dx || 0);
+                const y = getY(p.lat) + (p.dy || 0);
+                ctx.fillRect(x - 1, y - 1, 2, 2);
+            });
+
+            // Highlight specific point
+            if (hLat !== undefined && hLon !== undefined && hLat !== null) {
+                const hx = getX(hLon);
+                const hy = getY(hLat);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#4caf50';
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw center crosshair
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(centerPX - 5, centerPY); ctx.lineTo(centerPX + 5, centerPY);
+            ctx.moveTo(centerPX, centerPY - 5); ctx.lineTo(centerPX, centerPY + 5);
+            ctx.stroke();
+
+            this.canvas.classList.add('visible');
+        }
+    }
+
     class AmbientChatter {
         constructor() {
             this.fetcher = new WikidataFetcher();
+            this.mapRenderer = new MapRenderer('map-canvas');
             this.facts = [];
             this.deck = []; // A shuffled deck of facts to read from
             this.displayEl = document.getElementById('chatter-box');
@@ -632,7 +842,8 @@
         }
 
         async start(lat, lon) {
-            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('container').classList.add('running');
             this.displayEl.style.display = 'flex';
             const radii = [1, 2, 5, 10, 20, 50]; // Scan range in km
 
@@ -640,7 +851,7 @@
                 this.statusEl.innerText = `Scanning wikidata around ${lat.toFixed(4)}, ${lon.toFixed(4)} (${radius}km radius)...`;
 
                 try {
-                    const [newFacts, totalCount] = await Promise.all([
+                    const [newFacts, densityData] = await Promise.all([
                         this.fetcher.fetchNearby(lat, lon, radius),
                         this.fetcher.fetchTotalCount(lat, lon, radius)
                     ]);
@@ -648,9 +859,12 @@
                     // If we found enough facts, or this is our last attempt, start rambling
                     if (newFacts.length >= 50 || radius === 50) {
                          this.facts = newFacts;
+                         const totalCount = densityData.points.length;
 
                          let msg = `Found ${this.facts.length} items within ${radius}km.`;
-                         if (totalCount !== null && totalCount > this.facts.length) {
+                         if (totalCount >= 3000) {
+                             msg = `Found 3000+ items within ${radius}km. Selected ${this.facts.length}.`;
+                         } else if (totalCount > this.facts.length) {
                              msg = `Found ${totalCount} items within ${radius}km. Selected ${this.facts.length}.`;
                          }
 
@@ -659,6 +873,14 @@
                          if (this.facts.length === 0) {
                              this.speak({ label: "Seems like there's not much nearby.", type: 'none' });
                              return;
+                         }
+
+                         // Render map immediately
+                         this.mapRenderer.render(lat, lon, radius, densityData);
+
+                         // If we've already started speaking, highlight the current fact now that the map is ready
+                         if (this.lastFact && this.lastFact.lat && this.lastFact.lon) {
+                             this.mapRenderer.highlightPoint(this.lastFact.lat, this.lastFact.lon);
                          }
 
                          if (!this.isRambling) {
@@ -708,6 +930,9 @@
             const linkedFact = { ...fact };
             if (fact.type !== 'none') {
                 linkedFact.label = `<a href="${fact.id}" target="_blank">${fact.label}</a>`;
+                if (fact.lat && fact.lon) {
+                    this.mapRenderer.highlightPoint(fact.lat, fact.lon);
+                }
             }
 
             const sentence = this.constructSentence(linkedFact);
