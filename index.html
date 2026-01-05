@@ -60,6 +60,16 @@
             display: block;
             opacity: 1;
         }
+        #status {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            margin-top: 0.2rem;
+            width: 100%;
+        }
+        #container.running #status {
+            display: none;
+        }
         @media (min-width: 900px) {
             #container.running {
                 flex-direction: row;
@@ -117,16 +127,6 @@
         .message.old {
             opacity: 0.3;
             color: #888;
-        }
-        #status {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 0.5rem;
-            margin-top: 0.2rem;
-            width: 100%;
-        }
-        #container.running #status {
-            display: none;
         }
 
         input, button {
