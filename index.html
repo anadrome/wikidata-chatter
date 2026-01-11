@@ -328,6 +328,21 @@
                   UNION { ?item wdt:P840 ?place }  # Narrative (fiction) location
                   UNION { ?item wdt:P915 ?place }  # Filming location
                   UNION { ?item wdt:P740 ?place }  # Formed here
+                  UNION {
+                    ?item wdt:P276 ?place .
+                    FILTER NOT EXISTS { ?item wdt:P625 ?any }
+                    { ?item wdt:P585 ?evtDate }
+                    UNION
+                    {
+                      ?item wdt:P580 ?evtStart .
+                      VALUES ?evtClass {
+                        wd:Q178561 wd:Q198 wd:Q7944 wd:Q168983 wd:Q132241
+                        wd:Q868557 wd:Q464980 wd:Q216048 wd:Q1141386 wd:Q17156793
+                        wd:Q40231 wd:Q273120 wd:Q2020153 wd:Q182832
+                      }
+                      ?item wdt:P31 ?evtClass .
+                    }
+                  } # Event in location
                 } LIMIT 3000`;
 
              // Calculate bounds for the renderer (bounding box of the circle)
@@ -476,10 +491,22 @@
         getEventsQuery(lat, lon, radius) {
             return `
                 SELECT DISTINCT ?item ?itemLabel ?loc ?enDescription ?date ?precision ("event" AS ?type) ?sitelinks ?instanceLabel WHERE {
-                  SERVICE wikibase:around {
-                    ?item wdt:P625 ?loc .
-                    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
-                    bd:serviceParam wikibase:radius "${radius}" .
+                  {
+                    SERVICE wikibase:around {
+                      ?item wdt:P625 ?loc .
+                      bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                      bd:serviceParam wikibase:radius "${radius}" .
+                    }
+                  }
+                  UNION
+                  {
+                    SERVICE wikibase:around {
+                      ?place wdt:P625 ?loc .
+                      bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+                      bd:serviceParam wikibase:radius "${radius}" .
+                    }
+                    ?item wdt:P276 ?place .
+                    FILTER NOT EXISTS { ?item wdt:P625 ?any }
                   }
 
                   # Either it has a specific point in time...
