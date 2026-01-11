@@ -542,6 +542,7 @@
                       bd:serviceParam wikibase:radius "${radius}" .
                     }
                     ?item p:P159 ?stmt . # Headquartered here (specific qualifier coord)
+                    ?stmt rdf:type wikibase:BestRank .
                   }
                   OPTIONAL {
                     ?item p:P576 ?stmtDissolved .
